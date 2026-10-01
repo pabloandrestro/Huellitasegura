@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db_huellita_segura:
+    image: postgres:15-alpine
+    container_name: postgres_multi_tenant
+    restart: always
+    environment:
+      POSTGRES_USER: admin_huellita
+      POSTGRES_PASSWORD: admin 
+      POSTGRES_DB: huellita_segura_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  pgdata:

@@ -20,7 +20,9 @@ const validarFormatoRUT = (rut) => {
 
 router.get('/', async (req, res) => {
     try {
-        const resultado = await db.query('SELECT id, rut, nombre_organizacion, direccion, email_contacto, telefono FROM Refugios');
+        const resultado = await db.query(
+            'SELECT id, rut, nombre_organizacion, historia, direccion, email_contacto, telefono, logo_url, color_principal, color_secundario FROM Refugios'
+        );
         res.json({
             mensaje: "Lista de refugios obtenida con éxito",
             cantidad: resultado.rowCount,
@@ -32,9 +34,29 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET: Obtener un refugio específico (Para cargar los datos previos en el panel de Ajustes)
+router.get('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const resultado = await db.query(
+            'SELECT id, rut, nombre_organizacion, historia, direccion, email_contacto, telefono, logo_url, color_principal, color_secundario FROM Refugios WHERE id = $1',
+            [id]
+        );
+        
+        if (resultado.rowCount === 0) {
+            return res.status(404).json({ error: "Refugio no encontrado" });
+        }
+        
+        res.json(resultado.rows[0]);
+    } catch (error) {
+        console.error("Error al consultar el refugio:", error);
+        res.status(500).json({ error: "Hubo un problema al consultar la base de datos" });
+    }
+});
+
 router.post('/', upload.single('logo'), async (req, res) => {
     try {
-        const { rut, nombre_organizacion, direccion, email_contacto, telefono, color_principal, color_secundario, password } = req.body;
+        const { rut, nombre_organizacion, direccion, email_contacto, telefono, color_principal, color_secundario, password, historia } = req.body;
         
         if (!password) {
             return res.status(400).json({ error: "La contraseña es obligatoria" });
@@ -45,21 +67,18 @@ router.post('/', upload.single('logo'), async (req, res) => {
         }
 
         const rutLimpio = rut.replace(/\./g, '');
-
         const logo_url = req.file ? `http://localhost:3000/uploads/${req.file.filename}` : null;
 
         const nuevoRefugio = await db.query(
-            `INSERT INTO Refugios (rut, nombre_organizacion, direccion, email_contacto, telefono, logo_url, color_principal, color_secundario, estado_verificacion) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pendiente') RETURNING id`,
-            [rutLimpio, nombre_organizacion, direccion, email_contacto, telefono, logo_url, color_principal, color_secundario]
+            `INSERT INTO Refugios (rut, nombre_organizacion, direccion, email_contacto, telefono, historia, logo_url, color_principal, color_secundario, estado_verificacion) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pendiente') RETURNING id`,
+            [rutLimpio, nombre_organizacion, direccion, email_contacto, telefono, historia, logo_url, color_principal, color_secundario]
         );
 
         const refugio_id = nuevoRefugio.rows[0].id;
-
         const saltRounds = 10;
         const password_hash = await bcrypt.hash(password, saltRounds);
 
-        // Inyectamos rutLimpio en lugar de rut para el administrador
         await db.query(
             `INSERT INTO Usuarios (refugio_id, rut, nombre_completo, email, password_hash, rol) 
              VALUES ($1, $2, $3, $4, $5, 'Administrador')`,
@@ -81,16 +100,34 @@ router.post('/', upload.single('logo'), async (req, res) => {
 router.put('/:id', upload.single('logo'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { nombre_organizacion, direccion, email_contacto, telefono, color_principal, color_secundario } = req.body;
+        const { nombre_organizacion, direccion, telefono, historia, tema } = req.body;
+
+        let color_principal = null;
+        let color_secundario = null;
+        
+        if (tema) {
+            try {
+                const colores = JSON.parse(tema);
+                color_principal = colores.principal;
+                color_secundario = colores.secundario;
+            } catch (e) {
+                console.error("Error al parsear colores del tema:", e);
+            }
+        }
 
         const logo_url = req.file ? `http://localhost:3000/uploads/${req.file.filename}` : null;
 
         const refugioActualizado = await db.query(
             `UPDATE Refugios 
-             SET nombre_organizacion = $1, direccion = $2, email_contacto = $3, telefono = $4, 
-                 logo_url = COALESCE($5, logo_url), color_principal = $6, color_secundario = $7
+             SET nombre_organizacion = COALESCE(NULLIF($1, ''), nombre_organizacion), 
+                 direccion = COALESCE(NULLIF($2, ''), direccion), 
+                 telefono = COALESCE(NULLIF($3, ''), telefono), 
+                 historia = COALESCE(NULLIF($4, ''), historia),
+                 logo_url = COALESCE($5, logo_url), 
+                 color_principal = COALESCE(NULLIF($6, ''), color_principal), 
+                 color_secundario = COALESCE(NULLIF($7, ''), color_secundario)
              WHERE id = $8 RETURNING *`,
-            [nombre_organizacion, direccion, email_contacto, telefono, logo_url, color_principal, color_secundario, id]
+            [nombre_organizacion, direccion, telefono, historia, logo_url, color_principal, color_secundario, id]
         );
 
         if (refugioActualizado.rowCount === 0) {

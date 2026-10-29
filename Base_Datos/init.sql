@@ -5,6 +5,7 @@ CREATE TABLE Refugios (
   direccion VARCHAR(255),
   email_contacto VARCHAR(150),
   telefono VARCHAR(20),
+  historia TEXT,
   fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   logo_url VARCHAR(255),
   color_principal VARCHAR(7),
@@ -29,8 +30,9 @@ CREATE TABLE Animales (
   especie VARCHAR(50),
   raza VARCHAR(100),
   sexo VARCHAR(20),
+  edad varchar(50),
   fecha_ingreso TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  estado VARCHAR(50) DEFAULT 'Disponible',
+  estado VARCHAR(50) DEFAULT 'En adopción', -- Opciones: En adopción, Adoptado, No adoptable
   microchip VARCHAR(50) UNIQUE,
   foto varchar(255),
   historia text
@@ -79,10 +81,13 @@ CREATE TABLE Postulaciones (
   refugio_id INTEGER REFERENCES Refugios(id) ON DELETE CASCADE,
   fecha_postulacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   estado_postulacion VARCHAR(50) DEFAULT 'En Revisión', -- Opciones: En Revisión, Aprobada, Rechazada
-  
   foto_cedula_url VARCHAR(255),
   foto_domicilio_url VARCHAR(255),
   comprobante_ingresos_url VARCHAR(255),
-  
-  acepta_tratamiento_datos BOOLEAN NOT NULL DEFAULT FALSE
+  acepta_tratamiento_datos BOOLEAN NOT NULL DEFAULT FALSE,
+  tipo_vivienda VARCHAR(100),
+  composicion_hogar VARCHAR(255),
+  otras_mascotas VARCHAR(255),
+  tiempo_solas VARCHAR(100),
+  motivacion TEXT
 );

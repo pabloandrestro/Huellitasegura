@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import toast from 'react-hot-toast'; 
+import toast from 'react-hot-toast'; // 👈 IMPORTANTE: Agregado para que las notificaciones funcionen
 
 export default function Registro() {
   const navigate = useNavigate();
@@ -45,7 +45,6 @@ export default function Registro() {
       return;
     }
 
-    // Limitar a un máximo de 9 caracteres alfanuméricos (8 dígitos + 1 verificador)
     if (value.length > 9) {
       value = value.slice(0, 9);
     }
@@ -53,17 +52,16 @@ export default function Registro() {
     if (value.length > 1) {
       let body = value.slice(0, -1);
       let dv = value.slice(-1);
-      // Agregar puntos a los miles
       body = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
       setRut(`${body}-${dv}`);
     } else {
       setRut(value);
     }
     
-    setRutError(''); // Limpiar el error al escribir
+    setRutError('');
   };
 
-  // Validación Módulo 11 (Matemática estricta para RUT chileno)
+  // Validación Módulo 11 (RUT chileno)
   const validateRUT = (rutInput) => {
     if (!rutInput) return false;
     const cleanRUT = rutInput.replace(/[^0-9K]/ig, '').toUpperCase();
@@ -97,13 +95,11 @@ export default function Registro() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validación estricta de contraseñas antes de procesar
     if (password !== confirmPassword) {
       setPasswordError('Las contraseñas no coinciden');
       return;
     }
 
-    // Validación estricta de RUT obligatoria ÚNICAMENTE para Fundaciones
     if (tipoCuenta === 'fundacion') {
       if (!validateRUT(rut)) {
         setRutError('RUT inválido. Verifica el formato y dígito verificador.');
@@ -112,8 +108,6 @@ export default function Registro() {
     }
 
     setLoading(true);
-
-    // 1. Iniciamos una notificación visual de carga
     const toastId = toast.loading('Procesando registro...');
 
     try {
@@ -140,8 +134,11 @@ export default function Registro() {
            throw new Error(data.error || 'Error al registrar fundación');
         }
 
-        // 2. Éxito: Actualizamos la notificación de carga a éxito
         toast.success('¡Fundación y Administrador creados con éxito! Redirigiendo...', { id: toastId });
+        
+        setTimeout(() => {
+          navigate('/login');
+        }, 1500);
 
       } else {
         const adoptanteData = {
@@ -163,18 +160,22 @@ export default function Registro() {
            throw new Error(data.error || 'Hubo un error al registrar el adoptante');
         }
         
-        // 2. Éxito: Actualizamos la notificación de carga a éxito
-        toast.success('¡Cuenta de adoptante creada con éxito! Redirigiendo...', { id: toastId });
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('usuario', JSON.stringify(data.usuario || adoptanteData));
+        } else {
+          localStorage.setItem('usuario', JSON.stringify(adoptanteData));
+        }
+
+        toast.success('¡Cuenta de adoptante creada con éxito! Configurando preferencias...', { id: toastId });
+        
+        setTimeout(() => {
+          navigate('/preferencias-adoptante');
+        }, 1500);
       }
-      
-      // 3. Esperamos 1.5 segundos para que el usuario lea el mensaje antes de cambiar de página
-      setTimeout(() => {
-        navigate('/login');
-      }, 1500);
 
     } catch (error) {
       console.error('Error al registrar:', error);
-      // 4. Error: Actualizamos la notificación de carga a error
       toast.error(error.message, { id: toastId });
     } finally {
       setLoading(false);
@@ -301,7 +302,7 @@ export default function Registro() {
             {tipoCuenta === 'fundacion' && (
               <div className="animate-fadeIn space-y-8">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-700 mb-4 border-b pb-2">1. Datos de la Organización</h2>
+                  <h2 className="text-lg font-semibold text-slate-700 mb-4 border-b pb-2">Datos de la Organización</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input 
                       type="text" placeholder="🏢 Nombre (Ej. Refugio Esperanza)" 
@@ -309,7 +310,7 @@ export default function Registro() {
                       className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-pink-300 text-sm" required
                     />
                     
-                    {/* Campo RUT Formateado con Validación (Obligatorio únicamente para Fundación) */}
+                    {/* Campo RUT Formateado con Validación */}
                     <div className="w-full">
                       <input 
                         type="text" placeholder="📄 RUT Organización" 
